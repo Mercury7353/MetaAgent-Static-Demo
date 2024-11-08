@@ -60,3 +60,31 @@ section {
 .info-dialog {
     pointer-events: none;
 }
+
+.log-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    background-color: #f8f9fa;
+}
+
+.markdown-body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+}
+
+.markdown-body pre {
+    background-color: #f6f8fa;
+    border-radius: 3px;
+    padding: 16px;
+    overflow: auto;
+}
+
+.markdown-body code {
+    background-color: rgba(27,31,35,.05);
+    border-radius: 3px;
+    padding: .2em .4em;
+}
