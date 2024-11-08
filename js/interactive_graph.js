@@ -1,28 +1,91 @@
 document.addEventListener('DOMContentLoaded', function() {
-
+    const designForm = document.getElementById('design-form');
+    const designResponse = document.getElementById('design-response');
+    const deployForm = document.getElementById('deploy-form');
+    const deployResponse = document.getElementById('deploy-response');
     const runLog = document.getElementById('run-log');
 
-    function loadLog() {
-        fetch('/get_log')
+    // Handle design form submission
+    const designSpinner = document.getElementById('design-spinner');
+    designForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        designSpinner.style.display = 'inline-block'; // Show loading animation
+        // Disable button to prevent duplicate submissions
+        const designButton = designForm.querySelector('button[type="submit"]');
+        designButton.disabled = true;
+        designButton.textContent = 'Processing...';
+
+        const taskDescription = document.getElementById('task_description').value;
+
+        fetch('/design', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `task_description=${encodeURIComponent(taskDescription)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            designResponse.innerText = data.message;
+            if(data.status === 'success') {
+                loadFSM();
+            }
+            // Hide loading animation after processing
+            designSpinner.style.display = 'none';
+            designButton.disabled = false;
+            designButton.textContent = 'Design Multi-Agent System';
+        });
+    });
+
+    // Handle deploy form submission
+    const deploySpinner = document.getElementById('deploy-spinner');
+    deployForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        deploySpinner.style.display = 'inline-block'; // Show loading animation
+        // Disable button to prevent duplicate submissions
+        const deployButton = deployForm.querySelector('button[type="submit"]');
+        deployButton.disabled = true;
+        deployButton.textContent = 'Processing...';
+
+        const caseInput = document.getElementById('case_input').value;
+
+        fetch('/deploy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `case_input=${encodeURIComponent(caseInput)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            deployResponse.innerText = data.message;
+            if(data.status === 'success') {
+                loadLog();
+                loadFSM(); // Update FSM state
+            }
+            // Hide loading animation after processing
+            deploySpinner.style.display = 'none';
+            deployButton.disabled = false;
+            deployButton.textContent = 'Run Test';
+        });
+    });
+
+    // Load FSM data and visualize
+    function loadFSM() {
+        fetch('/get_fsm')
             .then(response => response.json())
             .then(data => {
                 if(data.status === 'error') {
-                    runLog.innerText = data.message;
+                    alert(data.message);
                     return;
                 }
-                runLog.innerText = data.log;
+                visualizeFSM(data);
             });
     }
 
-    function loadFSM() {
-        fetch('data/test_mas.json')
-            .then(response => response.json())
-            .then(data => {
-                visualizeFSM(data);
-            })
-            .catch(error => console.error('Error loading FSM data:', error));
-    }
+    let currentHighlightedNode = null;
 
+    // Visualize FSM
     function visualizeFSM(data) {
         // Clear previous graph
         d3.select("#fsm-graph").selectAll("*").remove();
@@ -37,9 +100,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const width = document.getElementById('fsm-graph').clientWidth;
         const height = document.getElementById('fsm-graph').clientHeight;
 
-        // Define arrow markers for links
+        // Define glow filter
         const defs = svg.append("defs");
 
+        const glowFilter = defs.append("filter")
+                               .attr("id", "glow");
+
+        glowFilter.append("feGaussianBlur")
+                  .attr("stdDeviation", "3.5")
+                  .attr("result", "coloredBlur");
+
+        const feMerge = glowFilter.append("feMerge");
+        feMerge.append("feMergeNode")
+               .attr("in", "coloredBlur");
+        feMerge.append("feMergeNode")
+               .attr("in", "SourceGraphic");
+
+        // Arrow markers for links
         defs.append('marker')
             .attr('id', 'arrow')
             .attr('viewBox', '0 -5 10 10')
@@ -50,21 +127,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr('orient', 'auto')
           .append('path')
             .attr('d', 'M0,-5L10,0L0,5')
-            .attr('fill', '#0ff');
-
-        // Add glow filter definition
-        const glowFilter = defs.append("filter")
-            .attr("id", "glow");
-
-        glowFilter.append("feGaussianBlur")
-            .attr("stdDeviation", "3.5")
-            .attr("result", "coloredBlur");
-
-        const feMerge = glowFilter.append("feMerge");
-        feMerge.append("feMergeNode")
-            .attr("in", "coloredBlur");
-        feMerge.append("feMergeNode")
-            .attr("in", "SourceGraphic");
+            .attr('fill', '#0ff')
+            .style('filter', 'url(#glow)');
 
         // Prepare nodes and links
         const nodes = data.states.states.map(state => ({
@@ -82,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
             condition: transition.condition
         }));
 
-        // Process bidirectional edges and self-loops
+        // Process bidirectional edges
         const linkCounts = {};
         links.forEach(link => {
             const key = `${link.source}-${link.target}`;
@@ -144,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Dialog background
                             dialog.append("rect")
                                   .attr("width", 250)
-                                  .attr("height", 100)
+                                  .attr("height", 150)
                                   .attr("rx", 10)
                                   .attr("ry", 10)
                                   .attr("fill", "rgba(50, 50, 50, 0.95)")
@@ -167,15 +231,15 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Information content
                             dialog.append("text")
                                   .attr("x", 20)
-                                  .attr("y", 40)
+                                  .attr("y", 30)
                                   .attr("font-size", "14px")
                                   .attr("fill", "#fff")
-                                  .text(`Condition:`);
+                                  .text(`Transition Condition:`);
 
                             dialog.append("foreignObject")
                                   .attr("x", 20)
-                                  .attr("y", 50)
-                                  .attr("width", 210)
+                                  .attr("y", 40)
+                                  .attr("width", 230)
                                   .attr("height", 40)
                                   .append("xhtml:div")
                                   .style("font-size", "12px")
@@ -268,23 +332,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             dialog.append("text")
                                   .attr("x", 20)
-                                  .attr("y", 50)
+                                  .attr("y", 60)
                                   .attr("font-size", "14px")
                                   .attr("fill", "#fff")
                                   .text(`Agent Name: ${agent ? agent.name : 'Unknown'}`);
 
                             dialog.append("text")
                                   .attr("x", 20)
-                                  .attr("y", 70)
+                                  .attr("y", 90)
                                   .attr("font-size", "14px")
                                   .attr("fill", "#fff")
                                   .text(`Instruction:`);
 
                             dialog.append("foreignObject")
                                   .attr("x", 20)
-                                  .attr("y", 80)
-                                  .attr("width", 210)
-                                  .attr("height", 50)
+                                  .attr("y", 100)
+                                  .attr("width", 230)
+                                  .attr("height", 40)
                                   .append("xhtml:div")
                                   .style("font-size", "12px")
                                   .style("color", "#fff")
@@ -296,7 +360,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                   .attr("y", 140)
                                   .attr("font-size", "14px")
                                   .attr("fill", "#fff")
-                                  .text(`Tools: ${agent && agent.tools ? agent.tools.join(', ') : 'None'}`);
+                                  .text(`Tools: ${agent && agent.tools ? agent.tools.join(', ') : 'None'}`)
+                                  .attr("dy", "0.35em");
                         });
 
         // Update positions
@@ -306,30 +371,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Self-loop
                     const x = d.source.x;
                     const y = d.source.y;
-                    const loopRadius = 30;
-                    return `M${x},${y}
-                            C${x + loopRadius},${y - loopRadius}
-                             ${x + loopRadius},${y + loopRadius}
+                    const loopRadius = 100;
+                    return `M${x},${y} 
+                            C${x + loopRadius},${y - loopRadius} 
+                             ${x + loopRadius},${y + loopRadius} 
                              ${x},${y}`;
                 } else {
                     if (d.curve !== undefined) {
                         const dx = d.target.x - d.source.x;
                         const dy = d.target.y - d.source.y;
                         const dr = Math.sqrt(dx * dx + dy * dy);
-                        return `M${d.source.x},${d.source.y}
-                                A${dr},${dr} 0 0,${d.curve > 0 ? 1 : 0}
+                        return `M${d.source.x},${d.source.y} 
+                                A${dr},${dr} 0 0,${d.curve > 0 ? 1 : 0} 
                                 ${d.target.x},${d.target.y}`;
                     } else {
+                        // Calculate arrow start and end points at the circle's edge
                         const dx = d.target.x - d.source.x;
                         const dy = d.target.y - d.source.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        const offsetX = (dx * 30) / distance;
-                        const offsetY = (dy * 30) / distance;
-                        const sourceX = d.source.x + offsetX;
-                        const sourceY = d.source.y + offsetY;
-                        const targetX = d.target.x - offsetX;
-                        const targetY = d.target.y - offsetY;
-                        return `M${sourceX},${sourceY}
+                        const sourceX = d.source.x + (dx * 40) / distance;
+                        const sourceY = d.source.y + (dy * 40) / distance;
+                        const targetX = d.target.x - (dx * 40) / distance;
+                        const targetY = d.target.y - (dy * 40) / distance;
+                        return `M${sourceX},${sourceY} 
                                 L${targetX},${targetY}`;
                     }
                 }
@@ -371,27 +435,139 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update node mouse events
         node.on("mouseover", function(event, d) {
                 d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr("r", 35);
+                  .transition()
+                  .duration(200)
+                  .attr("r", 35);
                 tooltip.transition().duration(200).style("opacity", 0.9);
                 tooltip.html(`State ID: ${d.id}<br/>Agent: ${d.agent_id}`)
-                    .style("left", (event.pageX + 15) + "px")
-                    .style("top", (event.pageY - 28) + "px");
+                       .style("left", (event.pageX + 15) + "px")
+                       .style("top", (event.pageY - 28) + "px");
             })
             .on("mouseout", function() {
                 d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr("r", 30);
+                  .transition()
+                  .duration(200)
+                  .attr("r", 30);
                 tooltip.transition().duration(500).style("opacity", 0);
             });
+
+        // Add zoom functionality
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 5])
+            .on('zoom', (event) => {
+                svg.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
     }
 
     // Load and visualize FSM
     loadFSM();
 
+    // Load running log
     loadLog();
     setInterval(loadLog, 5000);
 
+    // Load current state and highlight node
+    function loadCurrentState() {
+        fetch('/current_state')
+            .then(response => response.json())
+            .then(data => {
+                const currentState = data.current_state;
+                if (currentState && currentHighlightedNode !== currentState) {
+                    // Remove highlight from previous node
+                    if (currentHighlightedNode) {
+                        d3.select(`#node-${currentHighlightedNode}`)
+                          .attr("stroke", "#0ff")
+                          .attr("stroke-width", 2);
+                    }
+
+                    // Highlight current node
+                    d3.select(`#node-${currentState}`)
+                      .attr("stroke", "yellow")
+                      .attr("stroke-width", 4);
+
+                    currentHighlightedNode = currentState;
+                }
+            });
+    }
+
+    setInterval(loadCurrentState, 5000);
+
+    const generateCasesButton = document.getElementById('generate-cases-button');
+    const casesResponse = document.getElementById('cases-response');
+    const testCasesDisplay = document.getElementById('test-cases');
+    const casesSpinner = document.getElementById('cases-spinner');
+
+    generateCasesButton.addEventListener('click', function() {
+        casesSpinner.style.display = 'inline-block';
+        generateCasesButton.disabled = true;
+        generateCasesButton.textContent = 'Processing...';
+
+        fetch('/generate_cases', {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            casesResponse.innerText = data.message;
+            if(data.status === 'success') {
+                loadTestCases();
+            }
+            casesSpinner.style.display = 'none';
+            generateCasesButton.disabled = false;
+            generateCasesButton.textContent = 'Generate Test Cases';
+        });
+    });
+
+    const evolveButton = document.getElementById('evolve-button');
+    const evolveResponse = document.getElementById('evolve-response');
+    const evolveSpinner = document.getElementById('evolve-spinner');
+
+    evolveButton.addEventListener('click', function() {
+        evolveSpinner.style.display = 'inline-block';
+        evolveButton.disabled = true;
+        evolveButton.textContent = 'Processing...';
+
+        fetch('/evolve', {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            evolveResponse.innerText = data.message;
+            if(data.status === 'success') {
+                loadFSM(); // Reload updated MAS
+            }
+            evolveSpinner.style.display = 'none';
+            evolveButton.disabled = false;
+            evolveButton.textContent = 'Evolve Multi-Agent System';
+        });
+    });
+
+    function loadTestCases() {
+        fetch('/get_test_cases')
+            .then(response => response.json())
+            .then(data => {
+                if(data.status === 'error') {
+                    testCasesDisplay.innerText = data.message;
+                    return;
+                }
+                testCasesDisplay.innerText = JSON.stringify(data.test_cases, null, 2);
+            });
+    }
+
+    // Toggle Deploy Section
+    const deployToggleButton = document.getElementById('deploy-toggle-button');
+    const deploySection = document.getElementById('deploy-section');
+
+    deployToggleButton.addEventListener('click', function() {
+        if (deploySection.style.display === 'none' || deploySection.style.display === '') {
+            deploySection.style.display = 'block';
+            deployToggleButton.textContent = 'Hide Test Runner';
+        } else {
+            deploySection.style.display = 'none';
+            deployToggleButton.textContent = 'Run Test';
+        }
+    });
+
+    // Similar toggling for other sections like 'Generate Test Cases' and 'Evolve Multi-Agent System'
 });
