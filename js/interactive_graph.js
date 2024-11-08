@@ -1,5 +1,19 @@
 document.addEventListener('DOMContentLoaded', function() {
 
+    const runLog = document.getElementById('run-log');
+
+    function loadLog() {
+        fetch('/get_log')
+            .then(response => response.json())
+            .then(data => {
+                if(data.status === 'error') {
+                    runLog.innerText = data.message;
+                    return;
+                }
+                runLog.innerText = data.log;
+            });
+    }
+
     function loadFSM() {
         fetch('data/test_mas.json')
             .then(response => response.json())
@@ -17,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const svg = d3.select("#fsm-graph")
                       .append("svg")
                       .attr("width", '100%')
-                      .attr("height", '600px')
+                      .attr("height", '100%')
                       .style("background-color", "transparent");
 
         const width = document.getElementById('fsm-graph').clientWidth;
@@ -37,6 +51,20 @@ document.addEventListener('DOMContentLoaded', function() {
           .append('path')
             .attr('d', 'M0,-5L10,0L0,5')
             .attr('fill', '#0ff');
+
+        // Add glow filter definition
+        const glowFilter = defs.append("filter")
+            .attr("id", "glow");
+
+        glowFilter.append("feGaussianBlur")
+            .attr("stdDeviation", "3.5")
+            .attr("result", "coloredBlur");
+
+        const feMerge = glowFilter.append("feMerge");
+        feMerge.append("feMergeNode")
+            .attr("in", "coloredBlur");
+        feMerge.append("feMergeNode")
+            .attr("in", "SourceGraphic");
 
         // Prepare nodes and links
         const nodes = data.states.states.map(state => ({
@@ -95,6 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         .attr("stroke-width", "1.5px")
                         .attr("fill", "none")
                         .attr("marker-end", "url(#arrow)")
+                        .style("filter", "url(#glow)")
                         .on("mouseover", function() {
                             d3.select(this)
                               .attr("stroke-width", "3px");
@@ -327,9 +356,42 @@ document.addEventListener('DOMContentLoaded', function() {
             d.fx = null;
             d.fy = null;
         }
+
+        // Add tooltip functionality
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("position", "absolute")
+            .style("padding", "8px")
+            .style("background", "rgba(0, 0, 0, 0.8)")
+            .style("color", "#0ff")
+            .style("border-radius", "4px")
+            .style("pointer-events", "none")
+            .style("opacity", 0);
+
+        // Update node mouse events
+        node.on("mouseover", function(event, d) {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr("r", 35);
+                tooltip.transition().duration(200).style("opacity", 0.9);
+                tooltip.html(`State ID: ${d.id}<br/>Agent: ${d.agent_id}`)
+                    .style("left", (event.pageX + 15) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr("r", 30);
+                tooltip.transition().duration(500).style("opacity", 0);
+            });
     }
 
     // Load and visualize FSM
     loadFSM();
+
+    loadLog();
+    setInterval(loadLog, 5000);
 
 });
