@@ -2,20 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MetaAgent FSM Visualization</title>
+    <title>MetaAgent: Building your Multi-Agent System by one line of prompt</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://d3js.org/d3.v6.min.js"></script>
 </head>
 <body>
 
-    <h1>MetaAgent: Multi-Agent System Visualization</h1>
+    <h1>MetaAgent: Building your Multi-Agent System by one line of prompt</h1>
 
-    <!-- 其他内容，例如介绍、说明等 -->
     <div class="content">
-        <p>这里可以添加项目的介绍和内容。</p>
+        <!-- Main content from README.md -->
+        <p align="center">
+            <img src="images/face.png" alt="image" width="250"/>
+        </p>
+
+        <h2>🎆 News</h2>
+        <ul>
+            <li>[2024/10/17] Release the first version of MetaAgent.</li>
+        </ul>
+
+        <h2>👀 Overview</h2>
+        <p>
+            <img src="images/compare.png" alt="image"/>
+        </p>
+        <p>
+            MetaAgent is a framework that can be used to build your own multi-agent system automatically by <strong>one line of prompt</strong>.
+        </p>
+        <p>
+            The Multi-Agent System (MAS) is based on the Finite State Machine (FSM), which is shown in the figure.
+        </p>
+
+        <h3>Auto-generation of Multi-Agent System</h3>
+        <ul>
+            <li>Given a general task description (e.g., Build a multi-agent system for software development), MetaAgent can automatically generate a multi-agent system with several agents.</li>
+            <li>Unlike other auto-generation frameworks, MetaAgent can generate a multi-agent system without external training data.</li>
+            <li>The generated multi-agent system is also able to solve every case of the given task domain.</li>
+        </ul>
+
+        <h3>Why Finite State Machine?</h3>
+        <p>
+            <img src="images/FSM.png" alt="FSM Diagram"/>
+        </p>
+        <p>The finite state machine has several features:</p>
+        <ul>
+            <li>🔧 <strong>Tool Enabled</strong>: The agent can use tools to help it complete tasks.</li>
+            <li>🔄 <strong>State Traceback</strong>: The agent can traceback the state of the system when the task fails.</li>
+        </ul>
+
+        <!-- Additional customized content -->
+        <section>
+            <h2>Additional Custom Content</h2>
+            <p>Add any custom content you wish to display here.</p>
+        </section>
     </div>
 
-    <!-- 示例部分 -->
+    <!-- Example section -->
     <section>
         <h2>Example: Finite State Machine Visualization</h2>
         <div id="fsm-graph"></div>

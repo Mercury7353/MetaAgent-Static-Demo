@@ -42,7 +42,7 @@ section {
     pointer-events: none;
 }
 
-.links line {
+.links path {
     stroke: #999;
     stroke-opacity: 0.6;
 }
@@ -55,4 +55,8 @@ section {
 .labels text {
     font-size: 12px;
     fill: #333;
+}
+
+.info-dialog {
+    pointer-events: none;
 }

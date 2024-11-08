@@ -10,10 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function visualizeFSM(data) {
-        // 清空之前的图形
+        // Clear previous graph
         d3.select("#fsm-graph").selectAll("*").remove();
 
-        // 设置SVG画布
+        // Set up SVG canvas
         const svg = d3.select("#fsm-graph")
                       .append("svg")
                       .attr("width", '100%')
@@ -23,132 +23,294 @@ document.addEventListener('DOMContentLoaded', function() {
         const width = document.getElementById('fsm-graph').clientWidth;
         const height = document.getElementById('fsm-graph').clientHeight;
 
-        // 定义力模拟
-        const simulation = d3.forceSimulation()
-                             .force("link", d3.forceLink().id(d => d.id).distance(200))
-                             .force("charge", d3.forceManyBody().strength(-1000))
-                             .force("center", d3.forceCenter(width / 2, height / 2));
+        // Define arrow markers for links
+        const defs = svg.append("defs");
 
-        // 准备节点和链接数据
+        defs.append('marker')
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 15)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+          .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#0ff');
+
+        // Prepare nodes and links
         const nodes = data.states.states.map(state => ({
             id: state.state_id,
-            agent_id: state.agent_id,
+            name: state.state_id,
             instruction: state.instruction,
+            agent_id: state.agent_id,
             is_initial: state.is_initial,
             is_final: state.is_final
         }));
 
-        const links = data.states.transitions.map(transition => ({
+        let links = data.states.transitions.map(transition => ({
             source: transition.from_state,
             target: transition.to_state,
             condition: transition.condition
         }));
 
-        // 为节点创建索引，方便查找agent信息
+        // Process bidirectional edges and self-loops
+        const linkCounts = {};
+        links.forEach(link => {
+            const key = `${link.source}-${link.target}`;
+            const reverseKey = `${link.target}-${link.source}`;
+            if (link.source !== link.target) {
+                if (linkCounts[key]) {
+                    link.curve = Math.PI / 4;
+                } else if (linkCounts[reverseKey]) {
+                    link.curve = -Math.PI / 4;
+                } else {
+                    link.curve = 0;
+                }
+                linkCounts[key] = (linkCounts[key] || 0) + 1;
+            }
+        });
+
+        // Create a map of agents for easy lookup
         const agentsMap = {};
         data.agents.forEach(agent => {
             agentsMap[agent.agent_id] = agent;
         });
 
-        // 绘制链接
+        // Initialize simulation
+        const simulation = d3.forceSimulation(nodes)
+                             .force("link", d3.forceLink(links).id(d => d.id).distance(200))
+                             .force("charge", d3.forceManyBody().strength(-1000))
+                             .force("center", d3.forceCenter(width / 2, height / 2));
+
+        // Draw links
         const link = svg.append("g")
                         .attr("class", "links")
-                        .selectAll("line")
+                        .selectAll("path")
                         .data(links)
                         .enter()
-                        .append("line")
-                        .attr("stroke-width", 2)
-                        .attr("stroke", "#999");
+                        .append("path")
+                        .attr("class", "link-path")
+                        .attr("stroke", "#0ff")
+                        .attr("stroke-width", "1.5px")
+                        .attr("fill", "none")
+                        .attr("marker-end", "url(#arrow)")
+                        .on("mouseover", function() {
+                            d3.select(this)
+                              .attr("stroke-width", "3px");
+                        })
+                        .on("mouseout", function() {
+                            d3.select(this)
+                              .attr("stroke-width", "1.5px");
+                        })
+                        .on("click", function(event, d) {
+                            // Remove existing dialogs
+                            d3.selectAll(".info-dialog").remove();
 
-        // 绘制节点
+                            // Create dialog
+                            const dialog = svg.append("g")
+                                              .attr("class", "info-dialog")
+                                              .attr("transform", `translate(${d3.pointer(event, svg.node())[0] + 20}, ${d3.pointer(event, svg.node())[1] - 20})`);
+
+                            // Dialog background
+                            dialog.append("rect")
+                                  .attr("width", 250)
+                                  .attr("height", 100)
+                                  .attr("rx", 10)
+                                  .attr("ry", 10)
+                                  .attr("fill", "rgba(50, 50, 50, 0.95)")
+                                  .attr("stroke", "#fff")
+                                  .attr("stroke-width", 1.5);
+
+                            // Close button
+                            dialog.append("text")
+                                  .attr("x", 230)
+                                  .attr("y", 20)
+                                  .attr("text-anchor", "end")
+                                  .attr("font-size", "16px")
+                                  .attr("fill", "#fff")
+                                  .style("cursor", "pointer")
+                                  .text("✖")
+                                  .on("click", function() {
+                                      dialog.remove();
+                                  });
+
+                            // Information content
+                            dialog.append("text")
+                                  .attr("x", 20)
+                                  .attr("y", 40)
+                                  .attr("font-size", "14px")
+                                  .attr("fill", "#fff")
+                                  .text(`Condition:`);
+
+                            dialog.append("foreignObject")
+                                  .attr("x", 20)
+                                  .attr("y", 50)
+                                  .attr("width", 210)
+                                  .attr("height", 40)
+                                  .append("xhtml:div")
+                                  .style("font-size", "12px")
+                                  .style("color", "#fff")
+                                  .style("overflow-wrap", "break-word")
+                                  .html(d.condition);
+                        });
+
+        // Draw nodes
         const node = svg.append("g")
                         .attr("class", "nodes")
                         .selectAll("circle")
                         .data(nodes)
                         .enter()
                         .append("circle")
-                        .attr("r", 20)
+                        .attr("class", "node-circle")
+                        .attr("r", 30)
                         .attr("fill", d => {
                             if (d.is_initial) {
-                                return "#4CAF50"; // 初始状态为绿色
+                                return "#4CAF50"; // Green for initial nodes
                             } else if (d.is_final) {
-                                return "#F44336"; // 结束状态为红色
+                                return "#F44336"; // Red for final nodes
                             } else {
-                                return "#2196F3"; // 中间状态为蓝色
+                                return "#2196F3"; // Blue for standard nodes
                             }
                         })
+                        .attr("stroke", "#0ff")
+                        .attr("stroke-width", 2)
+                        .attr("id", d => `node-${d.id}`)
                         .call(d3.drag()
                             .on("start", dragstarted)
                             .on("drag", dragged)
                             .on("end", dragended))
-                        .on("mouseover", function(event, d) {
-                            d3.select(this).attr("stroke", "#000").attr("stroke-width", 2);
-
-                            // 显示提示框
-                            tooltip.transition()
-                                   .duration(200)
-                                   .style("opacity", .9);
-                            tooltip.html(`State ID: ${d.id}<br/>Agent: ${agentsMap[d.agent_id].name}`)
-                                   .style("left", (event.pageX + 10) + "px")
-                                   .style("top", (event.pageY - 28) + "px");
+                        .on("mouseover", function() {
+                            d3.select(this)
+                              .transition()
+                              .duration(200)
+                              .attr("r", 35);
                         })
                         .on("mouseout", function() {
-                            d3.select(this).attr("stroke", null);
+                            d3.select(this)
+                              .transition()
+                              .duration(200)
+                              .attr("r", 30);
+                        })
+                        .on("click", function(event, d) {
+                            // Remove existing dialogs
+                            d3.selectAll(".info-dialog").remove();
 
-                            // 隐藏提示框
-                            tooltip.transition()
-                                   .duration(500)
-                                   .style("opacity", 0);
+                            // Get node position
+                            const [x, y] = [d.x, d.y];
+
+                            // Create dialog
+                            const dialog = svg.append("g")
+                                              .attr("class", "info-dialog")
+                                              .attr("transform", `translate(${x + 50}, ${y - 60})`);
+
+                            // Dialog background
+                            dialog.append("rect")
+                                  .attr("width", 250)
+                                  .attr("height", 150)
+                                  .attr("rx", 10)
+                                  .attr("ry", 10)
+                                  .attr("fill", "rgba(50, 50, 50, 0.95)")
+                                  .attr("stroke", "#fff")
+                                  .attr("stroke-width", 1.5);
+
+                            // Close button
+                            dialog.append("text")
+                                  .attr("x", 230)
+                                  .attr("y", 20)
+                                  .attr("text-anchor", "end")
+                                  .attr("font-size", "16px")
+                                  .attr("fill", "#fff")
+                                  .style("cursor", "pointer")
+                                  .text("✖")
+                                  .on("click", function() {
+                                      dialog.remove();
+                                  });
+
+                            // Information content
+                            dialog.append("text")
+                                  .attr("x", 20)
+                                  .attr("y", 30)
+                                  .attr("font-size", "14px")
+                                  .attr("fill", "#fff")
+                                  .text(`State ID: ${d.id}`);
+
+                            const agent = agentsMap[d.agent_id];
+
+                            dialog.append("text")
+                                  .attr("x", 20)
+                                  .attr("y", 50)
+                                  .attr("font-size", "14px")
+                                  .attr("fill", "#fff")
+                                  .text(`Agent Name: ${agent ? agent.name : 'Unknown'}`);
+
+                            dialog.append("text")
+                                  .attr("x", 20)
+                                  .attr("y", 70)
+                                  .attr("font-size", "14px")
+                                  .attr("fill", "#fff")
+                                  .text(`Instruction:`);
+
+                            dialog.append("foreignObject")
+                                  .attr("x", 20)
+                                  .attr("y", 80)
+                                  .attr("width", 210)
+                                  .attr("height", 50)
+                                  .append("xhtml:div")
+                                  .style("font-size", "12px")
+                                  .style("color", "#fff")
+                                  .style("overflow-wrap", "break-word")
+                                  .html(d.instruction);
+
+                            dialog.append("text")
+                                  .attr("x", 20)
+                                  .attr("y", 140)
+                                  .attr("font-size", "14px")
+                                  .attr("fill", "#fff")
+                                  .text(`Tools: ${agent && agent.tools ? agent.tools.join(', ') : 'None'}`);
                         });
 
-        // 绘制节点标签
-        const label = svg.append("g")
-                         .attr("class", "labels")
-                         .selectAll("text")
-                         .data(nodes)
-                         .enter()
-                         .append("text")
-                         .attr("dy", -25)
-                         .attr("text-anchor", "middle")
-                         .text(d => d.id)
-                         .attr("font-size", 12)
-                         .attr("fill", "#333");
+        // Update positions
+        simulation.on("tick", () => {
+            link.attr("d", d => {
+                if (d.source === d.target) {
+                    // Self-loop
+                    const x = d.source.x;
+                    const y = d.source.y;
+                    const loopRadius = 30;
+                    return `M${x},${y}
+                            C${x + loopRadius},${y - loopRadius}
+                             ${x + loopRadius},${y + loopRadius}
+                             ${x},${y}`;
+                } else {
+                    if (d.curve !== undefined) {
+                        const dx = d.target.x - d.source.x;
+                        const dy = d.target.y - d.source.y;
+                        const dr = Math.sqrt(dx * dx + dy * dy);
+                        return `M${d.source.x},${d.source.y}
+                                A${dr},${dr} 0 0,${d.curve > 0 ? 1 : 0}
+                                ${d.target.x},${d.target.y}`;
+                    } else {
+                        const dx = d.target.x - d.source.x;
+                        const dy = d.target.y - d.source.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const offsetX = (dx * 30) / distance;
+                        const offsetY = (dy * 30) / distance;
+                        const sourceX = d.source.x + offsetX;
+                        const sourceY = d.source.y + offsetY;
+                        const targetX = d.target.x - offsetX;
+                        const targetY = d.target.y - offsetY;
+                        return `M${sourceX},${sourceY}
+                                L${targetX},${targetY}`;
+                    }
+                }
+            });
 
-        // 定义提示框
-        const tooltip = d3.select("body").append("div")
-                          .attr("class", "tooltip")
-                          .style("position", "absolute")
-                          .style("padding", "8px")
-                          .style("background", "rgba(0, 0, 0, 0.8)")
-                          .style("color", "#fff")
-                          .style("border-radius", "4px")
-                          .style("pointer-events", "none")
-                          .style("opacity", 0);
-
-        // 力模拟
-        simulation
-            .nodes(nodes)
-            .on("tick", ticked);
-
-        simulation.force("link")
-            .links(links);
-
-        function ticked() {
-            link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            node
-                .attr("cx", d => d.x)
+            node.attr("cx", d => d.x)
                 .attr("cy", d => d.y);
+        });
 
-            label
-                .attr("x", d => d.x)
-                .attr("y", d => d.y);
-        }
-
+        // Drag functions
         function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
@@ -167,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 加载并可视化FSM
+    // Load and visualize FSM
     loadFSM();
 
 });
