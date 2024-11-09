@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load FSM data and visualize
     function loadFSM() {
-        fetch('/get_fsm')
+        fetch('data/test_mas.json')
             .then(response => response.json())
             .then(data => {
                 if(data.status === 'error') {
@@ -80,6 +80,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 visualizeFSM(data);
+            })
+            .catch(error => {
+                console.error('Error loading FSM data:', error);
             });
     }
 
