@@ -9,21 +9,41 @@ function loadFSM() {
         "agents": [
             {
                 "agent_id": "0",
-                "name": "DataProcessor",
-                "system_prompt": "Responsible for processing the given dataset for training and testing the machine learning model. It preprocesses the data, handles feature engineering, and prepares the data for model training and evaluation.",
-                "tools": ["code_interpreter"]
+                "name": "DataPreprocessor",
+                "system_prompt": "You are DataPreprocessor. Your goal is to preprocess the given dataset. Your responsibilities include handling missing values, encoding categorical variables, and normalizing numerical features. Ensure the data is clean and ready for model training. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If dataset is preprocessed successfully, output `<STATUS_TRANS>: 2`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
+                "tools": [
+                    "code_interpreter"
+                ]
             },
             {
                 "agent_id": "1",
-                "name": "ModelTrainer",
-                "system_prompt": "Responsible for training the machine learning model on the processed dataset. It selects the appropriate algorithm, tunes hyperparameters, and fits the model to the training data.",
-                "tools": []
+                "name": "ModelSelector",
+                "system_prompt": "You are ModelSelector. Your goal is to select the most appropriate machine learning model based on the given dataset. Your responsibilities include evaluating different models and selecting the one with the best performance metrics. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the best model is selected, output `<STATUS_TRANS>: 3`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
+                "tools": [
+                    "code_interpreter"
+                ]
             },
             {
                 "agent_id": "2",
-                "name": "Evaluator",
-                "system_prompt": "Responsible for evaluating the trained model on the test dataset and reporting the expected metrics (e.g., F-1 score, RMSE) to the user. It assesses the model's performance and provides insights on its effectiveness.",
-                "tools": ["search_engine"]
+                "name": "ModelTrainer",
+                "system_prompt": "You are ModelTrainer. Your goal is to train the selected machine learning model using the preprocessed dataset. Your responsibilities include splitting the data into training and validation sets, training the model, and tuning hyperparameters. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the model is trained successfully, output `<STATUS_TRANS>: 4`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
+                "tools": [
+                    "code_interpreter"
+                ]
+            },
+            {
+                "agent_id": "3",
+                "name": "ModelEvaluator",
+                "system_prompt": "You are ModelEvaluator. Your goal is to evaluate the trained model using the test dataset. Your responsibilities include calculating performance metrics such as accuracy, precision, recall, and F1-score. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the model is evaluated successfully, output `<STATUS_TRANS>: 5`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
+                "tools": [
+                    "code_interpreter"
+                ]
+            },
+            {
+                "agent_id": "4",
+                "name": "ReportGenerator",
+                "system_prompt": "You are ReportGenerator. Your goal is to generate a comprehensive report of the model's performance. Your responsibilities include summarizing the evaluation metrics and providing insights into the model's strengths and weaknesses.\n- If If the report is generated successfully, output `<STATUS_TRANS>: 6`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
+                "tools": []
             }
         ],
         "states": {
@@ -31,31 +51,61 @@ function loadFSM() {
                 {
                     "state_id": "1",
                     "agent_id": "0",
-                    "instruction": "Process the given dataset for training and testing the machine learning model. Perform data preprocessing and feature engineering.",
+                    "instruction": "Preprocess the given dataset",
                     "is_initial": true,
                     "is_final": false,
-                    "listener": ["1"]
+                    "listener": [
+                        "1",
+                        "2"
+                    ]
                 },
                 {
                     "state_id": "2",
                     "agent_id": "1",
-                    "instruction": "Train the machine learning model on the processed dataset. Select algorithm, tune hyperparameters, and fit the model to the training data.",
+                    "instruction": "Select the best machine learning model based on the preprocessed dataset",
                     "is_initial": false,
                     "is_final": false,
-                    "listener": ["2"]
+                    "listener": [
+                        "2"
+                    ]
                 },
                 {
                     "state_id": "3",
                     "agent_id": "2",
-                    "instruction": "Evaluate the trained model on the test dataset. Report expected metrics (e.g., F-1 score, RMSE) to the user.",
+                    "instruction": "Train the selected machine learning model using the preprocessed dataset",
                     "is_initial": false,
                     "is_final": false,
-                    "listener": []
+                    "listener": [
+                        "3"
+                    ]
                 },
                 {
                     "state_id": "4",
-                    "agent_id": "2",
-                    "instruction": "Submit the final metrics to the user.",
+                    "agent_id": "3",
+                    "instruction": "Evaluate the trained model using the test dataset and calculate performance metrics",
+                    "is_initial": false,
+                    "is_final": false,
+                    "listener": [
+                        "4"
+                    ]
+                },
+                {
+                    "state_id": "5",
+                    "agent_id": "4",
+                    "instruction": "Generate a comprehensive report of the model's performance",
+                    "is_initial": false,
+                    "is_final": false,
+                    "listener": [
+                        "0",
+                        "1",
+                        "2",
+                        "3"
+                    ]
+                },
+                {
+                    "state_id": "6",
+                    "agent_id": "4",
+                    "instruction": "<|submit|>",
                     "is_initial": false,
                     "is_final": true,
                     "listener": []
@@ -65,17 +115,27 @@ function loadFSM() {
                 {
                     "from_state": "1",
                     "to_state": "2",
-                    "condition": "If dataset processing is completed successfully"
+                    "condition": "If dataset is preprocessed successfully"
                 },
                 {
                     "from_state": "2",
                     "to_state": "3",
-                    "condition": "If model training is successful"
+                    "condition": "If the best model is selected"
                 },
                 {
                     "from_state": "3",
                     "to_state": "4",
-                    "condition": "If model evaluation is completed and metrics are ready to report"
+                    "condition": "If the model is trained successfully"
+                },
+                {
+                    "from_state": "4",
+                    "to_state": "5",
+                    "condition": "If the model is evaluated successfully"
+                },
+                {
+                    "from_state": "5",
+                    "to_state": "6",
+                    "condition": "If the report is generated successfully"
                 }
             ]
         }
