@@ -72,18 +72,94 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load FSM data and visualize
     function loadFSM() {
-        fetch('data/test_mas.json')
-            .then(response => response.json())
-            .then(data => {
-                if(data.status === 'error') {
-                    alert(data.message);
-                    return;
+        // 直接使用静态数据
+        const data = {
+            {
+                "agents": [
+                    {
+                        "agent_id": "0",
+                        "name": "DataProcessor",
+                        "system_prompt": "Responsible for processing the given dataset for training and testing the machine learning model. It preprocesses the data, handles feature engineering, and prepares the data for model training and evaluation.",
+                        "tools": [
+                            "code_interpreter"
+                        ]
+                    },
+                    {
+                        "agent_id": "1",
+                        "name": "ModelTrainer",
+                        "system_prompt": "Responsible for training the machine learning model on the processed dataset. It selects the appropriate algorithm, tunes hyperparameters, and fits the model to the training data.",
+                        "tools": []
+                    },
+                    {
+                        "agent_id": "2",
+                        "name": "Evaluator",
+                        "system_prompt": "Responsible for evaluating the trained model on the test dataset and reporting the expected metrics (e.g., F-1 score, RMSE) to the user. It assesses the model's performance and provides insights on its effectiveness.",
+                        "tools": [
+                            "search_engine"
+                        ]
+                    }
+                ],
+                "states": {
+                    "states": [
+                        {
+                            "state_id": "1",
+                            "agent_id": "0",
+                            "instruction": "Process the given dataset for training and testing the machine learning model. Perform data preprocessing and feature engineering.",
+                            "is_initial": true,
+                            "is_final": false,
+                            "listener": [
+                                "1"
+                            ]
+                        },
+                        {
+                            "state_id": "2",
+                            "agent_id": "1",
+                            "instruction": "Train the machine learning model on the processed dataset. Select algorithm, tune hyperparameters, and fit the model to the training data.",
+                            "is_initial": false,
+                            "is_final": false,
+                            "listener": [
+                                "2"
+                            ]
+                        },
+                        {
+                            "state_id": "3",
+                            "agent_id": "2",
+                            "instruction": "Evaluate the trained model on the test dataset. Report expected metrics (e.g., F-1 score, RMSE) to the user.",
+                            "is_initial": false,
+                            "is_final": false,
+                            "listener": []
+                        },
+                        {
+                            "state_id": "4",
+                            "agent_id": "2",
+                            "instruction": "Submit the final metrics to the user.",
+                            "is_initial": false,
+                            "is_final": true,
+                            "listener": []
+                        }
+                    ],
+                    "transitions": [
+                        {
+                            "from_state": "1",
+                            "to_state": "2",
+                            "condition": "If dataset processing is completed successfully"
+                        },
+                        {
+                            "from_state": "2",
+                            "to_state": "3",
+                            "condition": "If model training is successful"
+                        },
+                        {
+                            "from_state": "3",
+                            "to_state": "4",
+                            "condition": "If model evaluation is completed and metrics are ready to report"
+                        }
+                    ]
                 }
-                visualizeFSM(data);
-            })
-            .catch(error => {
-                console.error('Error loading FSM data:', error);
-            });
+            }
+        };
+        
+        visualizeFSM(data);
     }
 
     let currentHighlightedNode = null;
