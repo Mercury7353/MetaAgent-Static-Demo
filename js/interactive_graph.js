@@ -6,139 +6,101 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load FSM data and visualize
 function loadFSM() {
     const data = {
-        "agents": [
-            {
-                "agent_id": "0",
-                "name": "DataPreprocessor",
-                "system_prompt": "You are DataPreprocessor. Your goal is to preprocess the given dataset. Your responsibilities include handling missing values, encoding categorical variables, and normalizing numerical features. Ensure the data is clean and ready for model training. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If dataset is preprocessed successfully, output `<STATUS_TRANS>: 2`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
-                "tools": [
-                    "code_interpreter"
-                ]
-            },
-            {
-                "agent_id": "1",
-                "name": "ModelSelector",
-                "system_prompt": "You are ModelSelector. Your goal is to select the most appropriate machine learning model based on the given dataset. Your responsibilities include evaluating different models and selecting the one with the best performance metrics. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the best model is selected, output `<STATUS_TRANS>: 3`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
-                "tools": [
-                    "code_interpreter"
-                ]
-            },
-            {
-                "agent_id": "2",
-                "name": "ModelTrainer",
-                "system_prompt": "You are ModelTrainer. Your goal is to train the selected machine learning model using the preprocessed dataset. Your responsibilities include splitting the data into training and validation sets, training the model, and tuning hyperparameters. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the model is trained successfully, output `<STATUS_TRANS>: 4`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
-                "tools": [
-                    "code_interpreter"
-                ]
-            },
-            {
-                "agent_id": "3",
-                "name": "ModelEvaluator",
-                "system_prompt": "You are ModelEvaluator. Your goal is to evaluate the trained model using the test dataset. Your responsibilities include calculating performance metrics such as accuracy, precision, recall, and F1-score. You can use the following tools:\n- code_interpreter: Use it with ```python <Your Code> ```. and you will got the stdout or error message\n\n- If If the model is evaluated successfully, output `<STATUS_TRANS>: 5`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
-                "tools": [
-                    "code_interpreter"
-                ]
-            },
-            {
-                "agent_id": "4",
-                "name": "ReportGenerator",
-                "system_prompt": "You are ReportGenerator. Your goal is to generate a comprehensive report of the model's performance. Your responsibilities include summarizing the evaluation metrics and providing insights into the model's strengths and weaknesses.\n- If If the report is generated successfully, output `<STATUS_TRANS>: 6`.\n- If no conditions are met, output `<STATUS_TRANS>: None`.\n\nWhen transitioning state, format the information for the next agent as <INFO>xxxx</INFO> and specify the next agent's role.",
-                "tools": []
-            }
-        ],
-        "states": {
-            "states": [
+        
+            "agents": [
                 {
-                    "state_id": "1",
                     "agent_id": "0",
-                    "instruction": "Preprocess the given dataset",
-                    "is_initial": true,
-                    "is_final": false,
-                    "listener": [
-                        "1",
-                        "2"
+                    "name": "RequirementDesigner",
+                    "system_prompt": "You are RequirementDesigner. Your goal is to understand the software requirements and create a design or architecture for the software. Your responsibility is to gather and analyze the requirements for the software project and ensure that the design is robust and scalable.",
+                    "tools": [
+                        "search_engine"
                     ]
                 },
                 {
-                    "state_id": "2",
                     "agent_id": "1",
-                    "instruction": "Select the best machine learning model based on the preprocessed dataset",
-                    "is_initial": false,
-                    "is_final": false,
-                    "listener": [
-                        "2"
+                    "name": "CodeDeveloper",
+                    "system_prompt": "You are CodeDeveloper. Your goal is to write the actual code for the software based on the design provided by RequirementDesigner. You are also responsible for writing a README file for the user and saving the developed software to a local file system. Ensure that the code is clean, efficient, and functional.",
+                    "tools": [
+                        "file_writer"
                     ]
                 },
                 {
-                    "state_id": "3",
                     "agent_id": "2",
-                    "instruction": "Train the selected machine learning model using the preprocessed dataset",
-                    "is_initial": false,
-                    "is_final": false,
-                    "listener": [
-                        "3"
+                    "name": "Tester",
+                    "system_prompt": "You are Tester. Your goal is to test the software to ensure it works as intended. Your responsibility is to identify and report any bugs or issues in the software. You should also report the expected metrics  on the test dataset to the user.",
+                    "tools": [
+                        "code_interpreter"
                     ]
-                },
-                {
-                    "state_id": "4",
-                    "agent_id": "3",
-                    "instruction": "Evaluate the trained model using the test dataset and calculate performance metrics",
-                    "is_initial": false,
-                    "is_final": false,
-                    "listener": [
-                        "4"
-                    ]
-                },
-                {
-                    "state_id": "5",
-                    "agent_id": "4",
-                    "instruction": "Generate a comprehensive report of the model's performance",
-                    "is_initial": false,
-                    "is_final": false,
-                    "listener": [
-                        "0",
-                        "1",
-                        "2",
-                        "3"
-                    ]
-                },
-                {
-                    "state_id": "6",
-                    "agent_id": "4",
-                    "instruction": "<|submit|>",
-                    "is_initial": false,
-                    "is_final": true,
-                    "listener": []
                 }
             ],
-            "transitions": [
-                {
-                    "from_state": "1",
-                    "to_state": "2",
-                    "condition": "If dataset is preprocessed successfully"
-                },
-                {
-                    "from_state": "2",
-                    "to_state": "3",
-                    "condition": "If the best model is selected"
-                },
-                {
-                    "from_state": "3",
-                    "to_state": "4",
-                    "condition": "If the model is trained successfully"
-                },
-                {
-                    "from_state": "4",
-                    "to_state": "5",
-                    "condition": "If the model is evaluated successfully"
-                },
-                {
-                    "from_state": "5",
-                    "to_state": "6",
-                    "condition": "If the report is generated successfully"
-                }
-            ]
-        }
+            "states": {
+                "states": [
+                    {
+                        "state_id": "1",
+                        "agent_id": "0",
+                        "instruction": "Gather and analyze software requirements and create a design or architecture based on the requirements.",
+                        "is_initial": true,
+                        "is_final": false,
+                        "listener": [
+                            "1"
+                        ]
+                    },
+                    {
+                        "state_id": "2",
+                        "agent_id": "1",
+                        "instruction": "Write the actual code based on the design, write a README file, and save the developed software to a local file system.",
+                        "is_initial": false,
+                        "is_final": false,
+                        "listener": [
+                            "2"
+                        ]
+                    },
+                    {
+                        "state_id": "3",
+                        "agent_id": "2",
+                        "instruction": "Test the software to ensure it works as intended. Report the expected metrics (like F-1 score, RMSE, etc.) on the test dataset to the user.",
+                        "is_initial": false,
+                        "is_final": false,
+                        "listener": [
+                            "0",
+                            "1"
+                        ]
+                    },
+                    {
+                        "state_id": "4",
+                        "agent_id": "0",
+                        "instruction": "<|submit|> The a response to the user, example: <|submit|>The software is developed and the metrics on the test dataset are reported.",
+                        "is_initial": false,
+                        "is_final": true,
+                        "listener": []
+                    }
+                ],
+                "transitions": [
+                    {
+                        "from_state": "1",
+                        "to_state": "2",
+                        "condition": "If requirements are clear and complete and design is robust and scalable"
+                    },
+                    {
+                        "from_state": "2",
+                        "to_state": "3",
+                        "condition": "If code is clean, efficient, and functional and README is clear, informative, and easy to understand"
+                    },
+                
+                    {
+                        "from_state": "3",
+                        "to_state": "4",
+                        "condition": "If software works as intended and metrics are reported"
+                    },
+                    {
+                        "from_state": "3",
+                        "to_state": "2",
+                        "condition": "If the test is not passed"
+                    }
+        
+                ]
+            }
+        
     };
     
     visualizeFSM(data);
