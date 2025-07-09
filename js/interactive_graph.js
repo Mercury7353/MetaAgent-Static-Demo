@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 直接调用 loadFSM() 来显示图形
     loadFSM();
+    generateQRCode();
 });
 
 // Load FSM data and visualize
@@ -168,6 +169,21 @@ function visualizeFSM(data) {
                          .force("charge", d3.forceManyBody().strength(-1000))
                          .force("center", d3.forceCenter(width / 2, height / 2));
 
+    // Add SVG filters for glow
+    svg.append("defs").html(`
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5"
+            orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,5 L0,10" fill="#00fff7" />
+        </marker>
+    `);
+
     // Draw links
     const link = svg.append("g")
                     .attr("class", "links")
@@ -176,7 +192,7 @@ function visualizeFSM(data) {
                     .enter()
                     .append("path")
                     .attr("class", "link-path")
-                    .attr("stroke", "#0ff")
+                    .attr("stroke", "#00fff7")
                     .attr("stroke-width", "1.5px")
                     .attr("fill", "none")
                     .attr("marker-end", "url(#arrow)")
@@ -250,15 +266,7 @@ function visualizeFSM(data) {
                     .append("circle")
                     .attr("class", "node-circle")
                     .attr("r", 30)
-                    .attr("fill", d => {
-                        if (d.is_initial) {
-                            return "#4CAF50"; // Green for initial nodes
-                        } else if (d.is_final) {
-                            return "#F44336"; // Red for final nodes
-                        } else {
-                            return "#2196F3"; // Blue for standard nodes
-                        }
-                    })
+                    .attr("fill", d => d.is_initial ? "#ff00cc" : d.is_final ? "#00fff7" : "#222")
                     .attr("stroke", "#0ff")
                     .attr("stroke-width", 2)
                     .attr("id", d => `node-${d.id}`)
@@ -419,8 +427,8 @@ function visualizeFSM(data) {
         .attr("class", "tooltip")
         .style("position", "absolute")
         .style("padding", "8px")
-        .style("background", "rgba(0, 0, 0, 0.8)")
-        .style("color", "#0ff")
+        .style("background", "rgba(20, 20, 40, 0.98)")
+        .style("color", "#00fff7")
         .style("border-radius", "4px")
         .style("pointer-events", "none")
         .style("opacity", 0);
@@ -452,4 +460,89 @@ function visualizeFSM(data) {
         });
 
     svg.call(zoom);
+
+    // Make SVG responsive
+    svg.attr("viewBox", `0 0 ${width} ${height}`)
+       .attr("preserveAspectRatio", "xMidYMid meet");
+
+    // Add touch support for dialogs
+    node.on("touchstart", function(event, d) {
+        event.preventDefault();
+        // Remove existing dialogs
+        d3.selectAll(".info-dialog").remove();
+
+        // Get node position
+        const [x, y] = [d.x, d.y];
+
+        // Create dialog
+        const dialog = svg.append("g")
+                          .attr("class", "info-dialog")
+                          .attr("transform", `translate(${x + 50}, ${y - 60})`);
+
+        // Dialog background
+        dialog.append("rect")
+              .attr("width", 250)
+              .attr("height", 150)
+              .attr("rx", 10)
+              .attr("ry", 10)
+              .attr("fill", "rgba(50, 50, 50, 0.95)")
+              .attr("stroke", "#fff")
+              .attr("stroke-width", 1.5);
+
+        // Close button
+        dialog.append("text")
+              .attr("x", 230)
+              .attr("y", 20)
+              .attr("text-anchor", "end")
+              .attr("font-size", "16px")
+              .attr("fill", "#fff")
+              .style("cursor", "pointer")
+              .text("✖")
+              .on("click", function() {
+                  dialog.remove();
+              });
+
+        // Information content
+        dialog.append("text")
+              .attr("x", 20)
+              .attr("y", 30)
+              .attr("font-size", "14px")
+              .attr("fill", "#fff")
+              .text(`State ID: ${d.id}`);
+
+        const agent = agentsMap[d.agent_id];
+
+        dialog.append("text")
+              .attr("x", 20)
+              .attr("y", 60)
+              .attr("font-size", "14px")
+              .attr("fill", "#fff")
+              .text(`Agent Name: ${agent ? agent.name : 'Unknown'}`);
+
+        dialog.append("text")
+              .attr("x", 20)
+              .attr("y", 90)
+              .attr("font-size", "14px")
+              .attr("fill", "#fff")
+              .text(`Instruction:`);
+
+        dialog.append("foreignObject")
+              .attr("x", 20)
+              .attr("y", 100)
+              .attr("width", 230)
+              .attr("height", 40)
+              .append("xhtml:div")
+              .style("font-size", "12px")
+              .style("color", "#fff")
+              .style("overflow-wrap", "break-word")
+              .html(d.instruction);
+
+        dialog.append("text")
+              .attr("x", 20)
+              .attr("y", 140)
+              .attr("font-size", "14px")
+              .attr("fill", "#fff")
+              .text(`Tools: ${agent && agent.tools ? agent.tools.join(', ') : 'None'}`)
+              .attr("dy", "0.35em");
+    });
 }
